@@ -27,7 +27,6 @@ from tqdm import tqdm
 
 from . import fa2util
 
-
 class Timer:
     def __init__(self, name="Timer"):
         self.name = name
@@ -51,6 +50,7 @@ class ForceAtlas2:
                  linLogMode=False,  # NOT IMPLEMENTED
                  adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
                  edgeWeightInfluence=1.0,
+                 radius_per_degree=1.0,
 
                  # Performance
                  jitterTolerance=1.0,  # Tolerance
@@ -65,7 +65,7 @@ class ForceAtlas2:
 
                  # Log
                  verbose=True):
-        assert linLogMode == adjustSizes == multiThreaded == False, "You selected a feature that has not been implemented yet..."
+        assert adjustSizes == multiThreaded == False, "You selected a feature that has not been implemented yet..."
         self.outboundAttractionDistribution = outboundAttractionDistribution
         self.linLogMode = linLogMode
         self.adjustSizes = adjustSizes
@@ -77,6 +77,7 @@ class ForceAtlas2:
         self.strongGravityMode = strongGravityMode
         self.gravity = gravity
         self.verbose = verbose
+        self.radius_per_degree = radius_per_degree
 
     def init(self,
              G,  # a graph in 2D numpy ndarray format (or) scipy sparse matrix format
@@ -208,7 +209,11 @@ class ForceAtlas2:
 
             # If other forms of attraction were implemented they would be selected here.
             attraction_timer.start()
-            fa2util.apply_attraction(nodes, edges, self.outboundAttractionDistribution, outboundAttCompensation,
+            if self.linLogMode:
+                fa2util.apply_log_attraction(nodes, edges, self.outboundAttractionDistribution, outboundAttCompensation,
+                                     self.edgeWeightInfluence)
+            else:
+                fa2util.apply_lin_attraction(nodes, edges, self.outboundAttractionDistribution, outboundAttCompensation,
                                      self.edgeWeightInfluence)
             attraction_timer.stop()
 

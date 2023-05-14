@@ -10,7 +10,7 @@
 #
 # Available under the GPLv3
 
-from math import sqrt
+from math import sqrt, log10
 
 
 # This will substitute for the nLayout object
@@ -95,17 +95,53 @@ def strongGravity(n, g, coefficient=0):
 # adjust the dx and dy values of `n1` and `n2`.  It does
 # not return anything.
 def linAttraction(n1, n2, e, distributedAttraction, coefficient=0):
-    xDist = n1.x - n2.x
-    yDist = n1.y - n2.y
-    if not distributedAttraction:
-        factor = -coefficient * e
-    else:
-        factor = -coefficient * e / n1.mass
-    n1.dx += xDist * factor
-    n1.dy += yDist * factor
-    n2.dx -= xDist * factor
-    n2.dy -= yDist * factor
+    #xDist = n1.x - n2.x# - n1.mass * radius_per_mass - n2.mass * radius_per_mass
+    #yDist = n1.y - n2.y# - n1.mass * radius_per_mass - n2.mass * radius_per_mass
+    # if not distributedAttraction:
+    #     factor = -coefficient * e
+    # else:
+    #     factor = -coefficient * e / n1.mass
+    #xForce = xDist * factor
+    #yForce = yDist * factor
 
+    # d is the distance between the two nodes
+    d = sqrt((n2.x - n1.x)**2 + (n2.y - n1.y)**2)
+    # du is a unit vector pointing in the direction of the force
+    du_x = (n2.x - n1.x) / d
+    du_y = (n2.y - n1.y) / d
+
+    if not distributedAttraction:
+        factor = coefficient * e
+    else:
+        factor = coefficient * e / n1.mass
+
+    force_x = du_x * d * factor
+    force_y = du_y * d * factor
+
+    n1.dx += force_x
+    n1.dy += force_y
+    n2.dx -= force_x
+    n2.dy -= force_y
+
+def logAttraction(n1, n2, e, distributedAttraction, coefficient=0):
+    # d is the distance between the two nodes
+    d = sqrt((n2.x - n1.x)**2 + (n2.y - n1.y)**2)
+    # du is a unit vector pointing in the direction of the force
+    du_x = (n2.x - n1.x) / d
+    du_y = (n2.y - n1.y) / d    
+    
+    if not distributedAttraction:
+        factor = coefficient * e
+    else:
+        factor = coefficient * e / n1.mass
+        
+    force_x = du_x * log10(1 + d) * factor
+    force_y = du_y * log10(1 + d) * factor
+
+    n1.dx += force_x
+    n1.dy += force_y
+    n2.dx -= force_x
+    n2.dy -= force_y
 
 # The following functions iterate through the nodes or edges and apply
 # the forces directly to the node objects.  These iterations are here
@@ -131,17 +167,30 @@ def apply_gravity(nodes, gravity, scalingRatio, useStrongGravity=False):
             strongGravity(n, gravity, scalingRatio)
 
 
-def apply_attraction(nodes, edges, distributedAttraction, coefficient, edgeWeightInfluence):
+def apply_lin_attraction(nodes, edges, distributedAttraction, coefficient, edgeWeightInfluence):
     # Optimization, since usually edgeWeightInfluence is 0 or 1, and pow is slow
     if edgeWeightInfluence == 0:
         for edge in edges:
             linAttraction(nodes[edge.node1], nodes[edge.node2], 1, distributedAttraction, coefficient)
     elif edgeWeightInfluence == 1:
         for edge in edges:
-            linAttraction(nodes[edge.node1], nodes[edge.node2], edge.weight, distributedAttraction, coefficient)
+            linAttraction(nodes[edge.node1], nodes[edge.node2], edge.weight,  distributedAttraction, coefficient)
     else:
         for edge in edges:
             linAttraction(nodes[edge.node1], nodes[edge.node2], pow(edge.weight, edgeWeightInfluence),
+                          distributedAttraction, coefficient)
+
+def apply_log_attraction(nodes, edges, distributedAttraction, coefficient, edgeWeightInfluence):
+    # Optimization, since usually edgeWeightInfluence is 0 or 1, and pow is slow
+    if edgeWeightInfluence == 0:
+        for edge in edges:
+            logAttraction(nodes[edge.node1], nodes[edge.node2], 1, distributedAttraction, coefficient)
+    elif edgeWeightInfluence == 1:
+        for edge in edges:
+            logAttraction(nodes[edge.node1], nodes[edge.node2], edge.weight, distributedAttraction, coefficient)
+    else:
+        for edge in edges:
+            logAttraction(nodes[edge.node1], nodes[edge.node2], pow(edge.weight, edgeWeightInfluence),
                           distributedAttraction, coefficient)
 
 
